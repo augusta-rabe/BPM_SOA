@@ -1,0 +1,41 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Répertoire de dépendances
+jspm_packages/
+
+# TypeScript compiled output
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs et editeurs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Fichiers d'environnement
+.env
+.env.*.local
+
+# Répertoire npm cache optionnel
+.npm/
+
+# eslint cache optionnel
+.eslintcache
+
+# stylelint cache optionnel
+.stylelintcache
+
+# Binaires pour macOS et Linux
+*.out
