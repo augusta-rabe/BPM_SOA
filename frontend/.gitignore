@@ -1,0 +1,16 @@
+# Répertoire des dépendances Node.js
+node_modules/
+
+# Fichiers de log
+*.log
+logs
+
+# Fichiers de sauvegarde
+**/*.backup.*
+**/*.back.*
+
+# Fichiers de configuration Sublime Text
+*.sublime*
+
+# Fichiers de design
+sketch  # Fichiers Sketch (outil de design UI/UX)
