@@ -1,0 +1,73 @@
+@startuml Diagramme de Classes - Gestion des Bénéficiaires
+
+class Employe {
+  -id: String
+  -nom: String
+  -prenom: String
+  -email: String
+  +initierDemandeMAJ()
+  +fournirInformationsPersonnelles()
+}
+
+class ConseillerRH {
+  -id: String
+  -nom: String
+  -prenom: String
+  +repondreAppel()
+  +validerInformations()
+  +noterNouveauBeneficiaire()
+}
+
+class Dossier {
+  -id: String
+  -dateCreation: Date
+  -statut: String
+  -employe: Employe
+  -beneficiaire: Beneficiaire
+  +mettreAJour()
+  +valider()
+}
+
+class Beneficiaire {
+  -id: String
+  -nom: String
+  -prenom: String
+  -dateNaissance: Date
+  -relationAvecEmploye: String
+  +creer()
+  +modifier()
+}
+
+class Notification {
+  -id: String
+  -type: String
+  -date: Date
+  -contenu: String
+  -destinataire: String
+  +envoyer()
+}
+
+class CourrierConfirmation {
+  -id: String
+  -date: Date
+  -contenu: String
+  -statut: String
+  +generer()
+  +envoyer()
+}
+
+class CompagnieAssurance {
+  -id: String
+  -nom: String
+  -email: String
+  +recevoirAvisChangement()
+}
+
+Employe "1" -- "*" Dossier
+Dossier "1" -- "1" Beneficiaire
+ConseillerRH "1" -- "*" Dossier
+Dossier "1" -- "*" Notification
+Dossier "1" -- "1" CourrierConfirmation
+CompagnieAssurance "1" -- "*" Notification
+
+@enduml 
