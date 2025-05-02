@@ -1,0 +1,11 @@
+ID,User Story,Priorité,Estimation (Points),Statut
+US001,"En tant qu'employé, je veux pouvoir initier une demande de mise à jour de dossier",Haute,5,À faire
+US002,"En tant que conseiller RH, je veux pouvoir répondre aux appels de mise à jour",Haute,3,À faire
+US003,"En tant qu'employé, je veux pouvoir fournir mes informations personnelles",Haute,5,À faire
+US004,"En tant que conseiller RH, je veux pouvoir valider les informations du nouveau bénéficiaire",Haute,8,À faire
+US005,"En tant que conseiller RH, je veux pouvoir noter le nom du nouveau bénéficiaire",Moyenne,3,À faire
+US006,"En tant que système, je veux pouvoir envoyer une notification de changement",Moyenne,5,À faire
+US007,"En tant que système, je veux pouvoir générer un courrier de confirmation",Moyenne,5,À faire
+US008,"En tant que compagnie d'assurance, je veux recevoir un avis de changement de bénéficiaire",Basse,3,À faire
+US009,"En tant qu'administrateur, je veux pouvoir suivre l'état des demandes",Basse,5,À faire
+US010,"En tant qu'utilisateur, je veux avoir une interface utilisateur intuitive",Moyenne,8,À faire 

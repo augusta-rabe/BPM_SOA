@@ -1,0 +1,11 @@
+Sprint,ID,Tâche,User Story Liée,Assigné à,Estimation (heures),Statut
+1,T001,"Configurer l'environnement de développement backend",US001,Non assigné,4,À faire
+1,T002,"Créer la structure de base de l'API GraphQL",US001,Non assigné,8,À faire
+1,T003,"Implémenter le modèle de données pour les bénéficiaires",US001,Non assigné,6,À faire
+1,T004,"Développer l'endpoint de création de demande",US001,Non assigné,6,À faire
+1,T005,"Créer l'interface de réponse aux appels",US002,Non assigné,8,À faire
+1,T006,"Implémenter le formulaire d'informations personnelles",US003,Non assigné,8,À faire
+1,T007,"Développer le système de validation des informations",US004,Non assigné,10,À faire
+1,T008,"Mettre en place les tests unitaires",US001,Non assigné,6,À faire
+1,T009,"Documenter l'API",US001,Non assigné,4,À faire
+1,T010,"Configurer l'environnement de production",US001,Non assigné,4,À faire 
