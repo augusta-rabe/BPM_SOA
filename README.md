@@ -217,8 +217,3 @@ Ce projet est développé selon une approche Agile Scrum avec:
 - Système de communication bidirectionnelle RH-Employé
 - Historique des modifications et rapports d'audit
 - Optimisations de performance et UX
-
-## Contributeurs
-
-- [Votre nom]
-- [Noms des membres de l'équipe]
