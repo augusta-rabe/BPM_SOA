@@ -11,6 +11,7 @@ import DossierDetails from './pages/DossierDetails';
 import MiseAJourBeneficiaire from './pages/MiseAJourBeneficiaire';
 import InterfaceCompagnieAssurance from './pages/InterfaceCompagnieAssurance';
 import GestionEmployes from './pages/GestionEmployes';
+import GestionConseillersRH from './pages/GestionConseillersRH';
 import './App.css';
 
 // Thème personnalisé
@@ -62,6 +63,7 @@ const App: React.FC = () => {
               <Route path="/compagnies-assurance" element={<InterfaceCompagnieAssurance />} />
               <Route path="/compagnie-assurance/:id" element={<InterfaceCompagnieAssurance />} />
               <Route path="/employes" element={<GestionEmployes />} />
+              <Route path="/conseillers-rh" element={<GestionConseillersRH />} />
             </Routes>
           </Layout>
         </Router>

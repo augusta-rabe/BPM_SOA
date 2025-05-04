@@ -315,4 +315,72 @@ export const DELETE_COMPAGNIE_ASSURANCE = gql`
   mutation DeleteCompagnieAssurance($id: ID!) {
     deleteCompagnieAssurance(id: $id)
   }
+`;
+
+export const GET_CONSEILLERS_RH = gql`
+  query GetConseillersRH {
+    conseillersRH {
+      id
+      nom
+      prenom
+      email
+    }
+  }
+`;
+
+export const GET_CONSEILLER_RH = gql`
+  query GetConseillerRH($id: ID!) {
+    conseillerRH(id: $id) {
+      id
+      nom
+      prenom
+      email
+      dossiers {
+        id
+        dateCreation
+        statut
+      }
+    }
+  }
+`;
+
+export const CREATE_CONSEILLER_RH = gql`
+  mutation CreateConseillerRH($input: CreateConseillerRHInput!) {
+    createConseillerRH(input: $input) {
+      id
+      nom
+      prenom
+      email
+    }
+  }
+`;
+
+export const UPDATE_CONSEILLER_RH = gql`
+  mutation UpdateConseillerRH($id: ID!, $input: UpdateConseillerRHInput!) {
+    updateConseillerRH(id: $id, input: $input) {
+      id
+      nom
+      prenom
+      email
+    }
+  }
+`;
+
+export const DELETE_CONSEILLER_RH = gql`
+  mutation DeleteConseillerRH($id: ID!) {
+    deleteConseillerRH(id: $id)
+  }
+`;
+
+export const UPDATE_DOSSIER_CONSEILLER = gql`
+  mutation UpdateDossierConseiller($id: ID!, $conseillerRHId: ID!) {
+    updateDossier(id: $id, input: { conseillerRHId: $conseillerRHId }) {
+      id
+      conseillerRH {
+        id
+        nom
+        prenom
+      }
+    }
+  }
 `; 

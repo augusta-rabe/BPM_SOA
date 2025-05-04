@@ -21,17 +21,25 @@ import {
   MenuItem,
   Card,
   CardContent,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
 } from '@mui/material';
 import { 
   GET_DOSSIER, 
   CREATE_DOSSIER, 
   UPDATE_DOSSIER_STATUT,
-  GET_DOSSIERS
+  GET_DOSSIERS,
+  GET_CONSEILLERS_RH,
+  UPDATE_DOSSIER_CONSEILLER
 } from '../graphql/queries';
 import GestionBeneficiaires from '../components/GestionBeneficiaires';
 import NotificationChangement from '../components/NotificationChangement';
 import CourrierConfirmation from '../components/CourrierConfirmation';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 const etapes = [
   'Information personnelle',
@@ -48,6 +56,8 @@ const MiseAJourBeneficiaire: React.FC = () => {
   const [nouveauDossierId, setNouveauDossierId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedEmployeId, setSelectedEmployeId] = useState<string | null>(null);
+  const [selectedConseillerRHId, setSelectedConseillerRHId] = useState<string | null>(null);
+  const [conseillerDialogOpen, setConseillerDialogOpen] = useState(false);
 
   // Charger le dossier existant si dossierId est fourni
   const { loading, error, data, refetch } = useQuery(GET_DOSSIER, {
@@ -57,6 +67,9 @@ const MiseAJourBeneficiaire: React.FC = () => {
   
   // Récupérer la liste des dossiers pour sélectionner un employé
   const { loading: loadingDossiers, data: dossiersData } = useQuery(GET_DOSSIERS);
+
+  // Récupérer la liste des conseillers RH
+  const { loading: loadingConseillers, data: conseillersData } = useQuery(GET_CONSEILLERS_RH);
 
   const [createDossier, { loading: creating }] = useMutation(CREATE_DOSSIER, {
     onCompleted: (data) => {
@@ -71,6 +84,15 @@ const MiseAJourBeneficiaire: React.FC = () => {
     }
   });
   const [updateStatut, { loading: updating }] = useMutation(UPDATE_DOSSIER_STATUT);
+  
+  const [updateDossierConseiller, { loading: updatingConseiller }] = useMutation(UPDATE_DOSSIER_CONSEILLER, {
+    onCompleted: () => {
+      refetch();
+    },
+    onError: (error) => {
+      setErrorMessage(`Erreur lors de l'assignation du conseiller: ${error.message}`);
+    }
+  });
 
   // ID du dossier à utiliser (existant ou nouveau)
   const dossierCourantId = dossierId || nouveauDossierId;
@@ -80,6 +102,10 @@ const MiseAJourBeneficiaire: React.FC = () => {
     if (data?.dossier) {
       // Si le dossier existe déjà, on utilise son bénéficiaire
       setSelectedBeneficiaireId(data.dossier.beneficiaire?.id || null);
+      // Si le dossier a un conseiller RH, on l'utilise
+      if (data.dossier.conseillerRH) {
+        setSelectedConseillerRHId(data.dossier.conseillerRH.id);
+      }
     }
   }, [data]);
 
@@ -99,13 +125,19 @@ const MiseAJourBeneficiaire: React.FC = () => {
           return;
         }
 
+        // Créer le dossier avec l'employé et éventuellement le conseiller RH
+        const input: any = {
+          employeId,
+          statut: 'EN_COURS'
+        };
+
+        // Si un conseiller RH est sélectionné, l'inclure dans la création du dossier
+        if (selectedConseillerRHId) {
+          input.conseillerRHId = selectedConseillerRHId;
+        }
+
         await createDossier({
-          variables: {
-            input: {
-              employeId,
-              statut: 'EN_COURS'
-            }
-          }
+          variables: { input }
         });
         return; // La fonction onCompleted gérera le passage à l'étape suivante
       } 
@@ -148,11 +180,25 @@ const MiseAJourBeneficiaire: React.FC = () => {
     setSelectedEmployeId(event.target.value);
   };
 
+  const handleConseillerRHSelected = (event: SelectChangeEvent<string>) => {
+    setSelectedConseillerRHId(event.target.value);
+    
+    // Si un dossier existe déjà, mettre à jour son conseiller RH
+    if (dossierCourantId) {
+      updateDossierConseiller({
+        variables: {
+          id: dossierCourantId,
+          conseillerRHId: event.target.value
+        }
+      });
+    }
+  };
+
   const handleEmployeDossierSelected = (dossierId: string) => {
     navigate(`/mise-a-jour-beneficiaire/${dossierId}`);
   };
 
-  if (loading || loadingDossiers) {
+  if (loading || loadingDossiers || loadingConseillers) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Box display="flex" justifyContent="center" my={4}>
@@ -176,6 +222,9 @@ const MiseAJourBeneficiaire: React.FC = () => {
   const employes = dossiersData?.dossiers 
     ? Array.from(new Map(dossiersData.dossiers.map((dossier: any) => [dossier.employe.id, dossier.employe])).values())
     : [];
+
+  // Liste des conseillers RH
+  const conseillers = conseillersData?.conseillersRH || [];
 
   // Créer une liste des dossiers groupés par employé
   const dossiersByEmploye = dossiersData?.dossiers
@@ -213,11 +262,17 @@ const MiseAJourBeneficiaire: React.FC = () => {
                   onChange={handleEmployeSelected}
                   label="Sélectionner un employé"
                 >
-                  {employes.map((employe: any) => (
-                    <MenuItem key={employe.id} value={employe.id}>
-                      {employe.prenom} {employe.nom} ({employe.email})
+                  {!employes?.length ? (
+                    <MenuItem value="">
+                      <em>Aucun employé disponible</em>
                     </MenuItem>
-                  ))}
+                  ) : (
+                    employes.map((employe: any) => (
+                      <MenuItem key={employe.id} value={employe.id}>
+                        {employe.prenom} {employe.nom} ({employe.email})
+                      </MenuItem>
+                    ))
+                  )}
                 </Select>
               </FormControl>
             </Grid>
@@ -275,6 +330,7 @@ const MiseAJourBeneficiaire: React.FC = () => {
   }
 
   const employe = data?.dossier?.employe;
+  const conseillerRH = data?.dossier?.conseillerRH;
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -282,7 +338,15 @@ const MiseAJourBeneficiaire: React.FC = () => {
         <Typography variant="h4" gutterBottom>
           Mise à jour du bénéficiaire
         </Typography>
-        
+                
+        <Stepper activeStep={etapeActive} sx={{ mb: 4 }}>
+          {etapes.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+
         {employe && (
           <Box mb={3}>
             <Typography variant="h6" gutterBottom>
@@ -295,30 +359,114 @@ const MiseAJourBeneficiaire: React.FC = () => {
         )}
         
         {errorMessage && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {errorMessage}
           </Alert>
         )}
 
-        <Stepper activeStep={etapeActive} sx={{ mb: 4 }}>
-          {etapes.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+        <Divider sx={{ mb: 2 }} />
 
-        <Divider sx={{ mb: 3 }} />
-
-        <Box sx={{ mb: 3 }}>
+        <Box sx={{ mb: 2 }}>
           {etapeActive === 0 && (
-            <Box>
-              <Typography variant="h6" gutterBottom>
-                Information personnelle
-              </Typography>
-              <Typography variant="body1" paragraph>
-                Vérifiez les informations personnelles de l'employé ci-dessus avant de passer à l'étape suivante.
-              </Typography>
+            <Box>              
+              <Box mt={3}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6">
+                    Conseiller RH
+                  </Typography>
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    startIcon={<PersonAddIcon />}
+                    onClick={() => setConseillerDialogOpen(true)}
+                  >
+                    {conseillerRH ? 'Changer' : 'Assigner'}
+                  </Button>
+                </Box>
+                
+                {conseillerRH ? (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Conseiller RH actuel : {conseillerRH.prenom} {conseillerRH.nom} ({conseillerRH.email})
+                  </Alert>
+                ) : (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Aucun conseiller RH assigné
+                  </Typography>
+                )}
+                
+                <Divider sx={{ mb: 2 }} />
+                
+                <Typography variant="body1" paragraph>
+                  Vérifiez les informations personnelles de l'employé et/ou du conseiller RH ci-dessus avant de passer à l'étape suivante.
+                </Typography>
+              </Box>
+
+              {/* Dialogue pour changer de conseiller RH */}
+              <Dialog
+                open={conseillerDialogOpen}
+                onClose={() => setConseillerDialogOpen(false)}
+                maxWidth="sm"
+                fullWidth
+              >
+                <DialogTitle>
+                  {conseillerRH ? 'Changer le conseiller RH' : 'Assigner un conseiller RH'}
+                </DialogTitle>
+                <DialogContent>
+                  <DialogContentText sx={{ mb: 2 }}>
+                    {conseillerRH 
+                      ? 'Sélectionnez un nouveau conseiller RH pour ce dossier.' 
+                      : 'Sélectionnez un conseiller RH à assigner à ce dossier.'}
+                  </DialogContentText>
+                  
+                  {loadingConseillers ? (
+                    <Box display="flex" justifyContent="center" my={2}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : (
+                    <FormControl fullWidth sx={{ mt: 1 }}>
+                      <InputLabel id="conseiller-select-dialog-label">Conseiller RH</InputLabel>
+                      <Select
+                        labelId="conseiller-select-dialog-label"
+                        value={selectedConseillerRHId || ''}
+                        onChange={handleConseillerRHSelected}
+                        label="Conseiller RH"
+                      >
+                        {!(conseillers && conseillers.length > 0) ? (
+                            <MenuItem value="">
+                              <em>Aucun conseiller disponible</em>
+                            </MenuItem>
+                          ) : (
+                            conseillers.map((conseiller: any) => (
+                              <MenuItem key={conseiller.id} value={conseiller.id}>
+                                {conseiller.prenom} {conseiller.nom} ({conseiller.email})
+                              </MenuItem>
+                            ))
+                          )};
+                      </Select>
+                    </FormControl>
+                  )}
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setConseillerDialogOpen(false)}>Annuler</Button>
+                  <Button 
+                    onClick={() => {
+                      if (dossierCourantId) {
+                        updateDossierConseiller({
+                          variables: {
+                            id: dossierCourantId,
+                            conseillerRHId: selectedConseillerRHId || null
+                          }
+                        });
+                      }
+                      setConseillerDialogOpen(false);
+                    }}
+                    color="primary" 
+                    disabled={updatingConseiller}
+                  >
+                    {updatingConseiller ? 'Mise à jour...' : 'Confirmer'}
+                  </Button>
+                </DialogActions>
+              </Dialog>
             </Box>
           )}
 

@@ -23,7 +23,8 @@ import {
   Person as PersonIcon,
   People as PeopleIcon,
   Business as BusinessIcon,
-  EditNote as EditNoteIcon
+  EditNote as BenefIcon,
+  Support as ConseillerIcon,
 } from '@mui/icons-material';
 
 interface LayoutProps {
@@ -43,8 +44,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const menuItems = [
     { text: 'Tableau de bord', icon: <DashboardIcon />, path: '/' },
     { text: 'Employés', icon: <PeopleIcon />, path: '/employes' },
+    { text: 'Conseillers RH', icon: <ConseillerIcon />, path: '/conseillers-rh' },
     { text: 'Dossiers', icon: <FolderIcon />, path: '/dossiers' },
-    { text: 'Bénéficiaires', icon: <EditNoteIcon />, path: '/mise-a-jour-beneficiaire' },
+    { text: 'Bénéficiaires', icon: <BenefIcon />, path: '/mise-a-jour-beneficiaire' },
     { text: 'Compagnies d\'assurance', icon: <BusinessIcon />, path: '/compagnies-assurance' },
   ];
 

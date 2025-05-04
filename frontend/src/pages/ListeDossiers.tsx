@@ -29,17 +29,20 @@ import {
   DialogTitle,
   Grid,
   Autocomplete,
+  InputAdornment,
 } from '@mui/material';
-import { Delete as DeleteIcon, Visibility as VisibilityIcon, Add as AddIcon } from '@mui/icons-material';
+import { Delete as DeleteIcon, Search as SearchIcon, Visibility as VisibilityIcon, Add as AddIcon } from '@mui/icons-material';
 import { 
   GET_DOSSIERS, 
   DELETE_DOSSIER, 
   CREATE_DOSSIER, 
   CREATE_EMPLOYE, 
   CREATE_BENEFICIAIRE,
-  GET_EMPLOYES 
+  GET_EMPLOYES,
+  GET_CONSEILLERS_RH,
+  CREATE_CONSEILLER_RH
 } from '../graphql/queries';
-import { StatutDossier, Dossier, Employe } from '../types';
+import { StatutDossier, Dossier, Employe, ConseillerRH } from '../types';
 
 const ListeDossiers: React.FC = () => {
   const navigate = useNavigate();
@@ -47,6 +50,8 @@ const ListeDossiers: React.FC = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatutDossier | 'TOUS'>('TOUS');
+  const [employeFilter, setEmployeFilter] = useState<Employe | null>(null);
+  const [conseillerFilter, setConseillerFilter] = useState<ConseillerRH | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
@@ -54,6 +59,8 @@ const ListeDossiers: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [selectedEmploye, setSelectedEmploye] = useState<Employe | null>(null);
+  const [modeConseiller, setModeConseiller] = useState<'none' | 'existing' | 'new'>('none');
+  const [selectedConseillerRH, setSelectedConseillerRH] = useState<ConseillerRH | null>(null);
   
   const [formData, setFormData] = useState({
     employe: {
@@ -67,14 +74,51 @@ const ListeDossiers: React.FC = () => {
       dateNaissance: '',
       relationAvecEmploye: '',
     },
+    conseillerRH: {
+      nom: '',
+      prenom: '',
+      email: '',
+    }
   });
 
   const { loading: loadingDossiers, error: errorDossiers, data, refetch } = useQuery(GET_DOSSIERS);
   const { data: employesData, loading: employesLoading } = useQuery(GET_EMPLOYES);
+  const { data: conseillersData, loading: conseillersLoading } = useQuery(GET_CONSEILLERS_RH);
   const [deleteDossier] = useMutation(DELETE_DOSSIER);
   const [createDossier] = useMutation(CREATE_DOSSIER);
-  const [createEmploye] = useMutation(CREATE_EMPLOYE);
+  const [createEmploye] = useMutation(CREATE_EMPLOYE, {
+    update(cache, { data: { createEmploye } }) {
+      // Récupérer les données actuelles du cache
+      const existingEmployes = cache.readQuery<{ employes: Employe[] }>({
+        query: GET_EMPLOYES
+      });
+      
+      // Ajouter le nouvel employé aux données existantes
+      if (existingEmployes && createEmploye) {
+        cache.writeQuery({
+          query: GET_EMPLOYES,
+          data: { employes: [...existingEmployes.employes, createEmploye] }
+        });
+      }
+    }
+  });
   const [createBeneficiaire] = useMutation(CREATE_BENEFICIAIRE);
+  const [createConseiller] = useMutation(CREATE_CONSEILLER_RH, {
+    update(cache, { data: { createConseillerRH } }) {
+      // Récupérer les données actuelles du cache
+      const existingConseillers = cache.readQuery<{ conseillersRH: ConseillerRH[] }>({
+        query: GET_CONSEILLERS_RH
+      });
+      
+      // Ajouter le nouveau conseiller aux données existantes
+      if (existingConseillers && createConseillerRH) {
+        cache.writeQuery({
+          query: GET_CONSEILLERS_RH,
+          data: { conseillersRH: [...existingConseillers.conseillersRH, createConseillerRH] }
+        });
+      }
+    }
+  });
 
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
@@ -118,9 +162,16 @@ const ListeDossiers: React.FC = () => {
         dateNaissance: '',
         relationAvecEmploye: '',
       },
+      conseillerRH: {
+        nom: '',
+        prenom: '',
+        email: '',
+      }
     });
     setMode('existing');
+    setModeConseiller('none');
     setSelectedEmploye(null);
+    setSelectedConseillerRH(null);
     setError(null);
   };
 
@@ -147,6 +198,10 @@ const ListeDossiers: React.FC = () => {
 
   const handleEmployeSelect = (employe: Employe | null) => {
     setSelectedEmploye(employe);
+  };
+
+  const handleConseillerSelect = (conseiller: ConseillerRH | null) => {
+    setSelectedConseillerRH(conseiller);
   };
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -216,14 +271,56 @@ const ListeDossiers: React.FC = () => {
         throw new Error("Erreur lors de la création du bénéficiaire");
       }
 
+      // Création ou sélection du conseiller RH
+      let conseillerRHId = null;
+
+      if (modeConseiller === 'existing' && selectedConseillerRH) {
+        conseillerRHId = selectedConseillerRH.id;
+      } else if (modeConseiller === 'new') {
+        // Validation des champs obligatoires pour le conseiller
+        if (!formData.conseillerRH.nom || !formData.conseillerRH.prenom || !formData.conseillerRH.email) {
+          setError("Veuillez remplir tous les champs obligatoires du conseiller RH");
+          setLoading(false);
+          return;
+        }
+
+        // Validation du format d'email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.conseillerRH.email)) {
+          setError("Veuillez entrer une adresse email valide pour le conseiller RH");
+          setLoading(false);
+          return;
+        }
+
+        // Création du conseiller RH
+        const { data: conseillerData } = await createConseiller({
+          variables: {
+            input: formData.conseillerRH
+          }
+        });
+
+        if (conseillerData?.createConseillerRH) {
+          conseillerRHId = conseillerData.createConseillerRH.id;
+        } else {
+          throw new Error("Erreur lors de la création du conseiller RH");
+        }
+      }
+
       // Création du dossier
+      const dossierInput: any = {
+        employeId: employeId,
+        beneficiaireId: beneficiaireData.createBeneficiaire.id,
+        statut: StatutDossier.EN_ATTENTE
+      };
+
+      // Ajouter le conseiller RH s'il a été sélectionné ou créé
+      if (conseillerRHId) {
+        dossierInput.conseillerRHId = conseillerRHId;
+      }
+
       const { data: dossierData } = await createDossier({
         variables: {
-          input: {
-            employeId: employeId,
-            beneficiaireId: beneficiaireData.createBeneficiaire.id,
-            statut: StatutDossier.EN_ATTENTE
-          }
+          input: dossierInput
         }
       });
 
@@ -237,7 +334,15 @@ const ListeDossiers: React.FC = () => {
     } catch (err: any) {
       console.error('Erreur détaillée:', err);
       if (err.message.includes('duplicate key error')) {
-        setError("Un employé avec cet email existe déjà. Veuillez utiliser un email différent.");
+        if (err.message.includes('email_1')) {
+          if (mode === 'new') {
+            setError("Un employé avec cet email existe déjà. Veuillez utiliser un email différent.");
+          } else if (modeConseiller === 'new') {
+            setError("Un conseiller avec cet email existe déjà. Veuillez utiliser un email différent.");
+          }
+        } else {
+          setError("Une entrée avec ces informations existe déjà.");
+        }
       } else if (err.message.includes('network error')) {
         setError("Erreur de connexion au serveur. Veuillez vérifier votre connexion internet.");
       } else {
@@ -281,6 +386,7 @@ const ListeDossiers: React.FC = () => {
 
   const dossiers = data?.dossiers || [];
   const employes = employesData?.employes || [];
+  const conseillers = conseillersData?.conseillersRH || [];
   
   const filteredDossiers = dossiers.filter((dossier: Dossier) => {
     const matchesSearch = searchTerm === '' || 
@@ -291,7 +397,12 @@ const ListeDossiers: React.FC = () => {
     
     const matchesStatus = statusFilter === 'TOUS' || dossier.statut === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesEmploye = !employeFilter || dossier.employe.id === employeFilter.id;
+    
+    const matchesConseiller = !conseillerFilter || 
+      (dossier.conseillerRH && dossier.conseillerRH.id === conseillerFilter.id);
+    
+    return matchesSearch && matchesStatus && matchesEmploye && matchesConseiller;
   });
 
   const dossiersFiltres = filteredDossiers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -310,20 +421,27 @@ const ListeDossiers: React.FC = () => {
         </Button>
       </Box>
 
-      <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
+      <Box sx={{ mb: 3, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+        
         <TextField
           label="Rechercher"
-          variant="outlined"
           size="small"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
         />
         <FormControl variant="outlined" size="small" sx={{ minWidth: 200 }}>
-          <InputLabel>Statut</InputLabel>
+          <InputLabel>Filtrer par statut </InputLabel>
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as StatutDossier | 'TOUS')}
-            label="Statut"
+            label="Filtrer par statut"
           >
             <MenuItem value="TOUS">Tous les statuts</MenuItem>
             <MenuItem value={StatutDossier.EN_ATTENTE}>En attente</MenuItem>
@@ -332,6 +450,36 @@ const ListeDossiers: React.FC = () => {
             <MenuItem value={StatutDossier.ANNULE}>Rejeté</MenuItem>
           </Select>
         </FormControl>
+        
+        <Autocomplete
+          size="small"
+          sx={{ minWidth: 250 }}
+          options={employes}
+          getOptionLabel={(option: Employe) => `${option.prenom} ${option.nom}`}
+          value={employeFilter}
+          onChange={(_, newValue) => setEmployeFilter(newValue)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Filtrer par employé"
+            />
+          )}
+        />
+
+        <Autocomplete
+          size="small"
+          sx={{ minWidth: 250 }}
+          options={conseillers}
+          getOptionLabel={(option: ConseillerRH) => `${option.prenom} ${option.nom}`}
+          value={conseillerFilter}
+          onChange={(_, newValue) => setConseillerFilter(newValue)}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Filtrer par conseiller RH"
+            />
+          )}
+        />
       </Box>
 
       <TableContainer component={Paper}>
@@ -448,7 +596,7 @@ const ListeDossiers: React.FC = () => {
             </Alert>
           )}
           <form onSubmit={handleCreateSubmit}>
-            <Grid container spacing={3} sx={{ mt: 1 }}>
+            <Grid container spacing={3}>
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
                   Informations de l'employé
@@ -540,6 +688,108 @@ const ListeDossiers: React.FC = () => {
                 </>
               )}
 
+              {/* Partie conseiller RH */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Conseiller RH (optionnel)
+                </Typography>
+                <FormControl component="fieldset" sx={{ mb: 2 }}>
+                  <Grid container spacing={2}>
+                    <Grid item>
+                      <Button 
+                        variant={modeConseiller === 'none' ? "contained" : "outlined"}
+                        onClick={() => {
+                          setModeConseiller('none');
+                          setSelectedConseillerRH(null);
+                        }}
+                      >
+                        Aucun conseiller
+                      </Button>
+                    </Grid>
+                    <Grid item>
+                      <Button 
+                        variant={modeConseiller === 'existing' ? "contained" : "outlined"}
+                        onClick={() => setModeConseiller('existing')}
+                      >
+                        Sélectionner un conseiller existant
+                      </Button>
+                    </Grid>
+                    <Grid item>
+                      <Button 
+                        variant={modeConseiller === 'new' ? "contained" : "outlined"}
+                        onClick={() => setModeConseiller('new')}
+                      >
+                        Ajouter un nouveau conseiller
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </FormControl>
+              </Grid>
+
+              {modeConseiller === 'existing' && (
+                <Grid item xs={12}>
+                  {conseillersLoading ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    <Autocomplete
+                      id="conseiller-select"
+                      options={conseillers}
+                      getOptionLabel={(option: ConseillerRH) => `${option.prenom} ${option.nom} (${option.email})`}
+                      value={selectedConseillerRH}
+                      onChange={(_, newValue) => handleConseillerSelect(newValue)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Sélectionner un conseiller RH"
+                          fullWidth
+                        />
+                      )}
+                    />
+                  )}
+                </Grid>
+              )}
+
+              {modeConseiller === 'new' && (
+                <>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Nom"
+                      value={formData.conseillerRH.nom}
+                      onChange={(e) => handleChange('conseillerRH.nom', e.target.value)}
+                      required
+                      error={!formData.conseillerRH.nom && formData.conseillerRH.nom !== ''}
+                      helperText={!formData.conseillerRH.nom && formData.conseillerRH.nom !== '' ? "Le nom est requis" : ""}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      fullWidth
+                      label="Prénom"
+                      value={formData.conseillerRH.prenom}
+                      onChange={(e) => handleChange('conseillerRH.prenom', e.target.value)}
+                      required
+                      error={!formData.conseillerRH.prenom && formData.conseillerRH.prenom !== ''}
+                      helperText={!formData.conseillerRH.prenom && formData.conseillerRH.prenom !== '' ? "Le prénom est requis" : ""}
+                    />
+                  </Grid>
+
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      type="email"
+                      value={formData.conseillerRH.email}
+                      onChange={(e) => handleChange('conseillerRH.email', e.target.value)}
+                      required
+                      error={!formData.conseillerRH.email && formData.conseillerRH.email !== ''}
+                      helperText={!formData.conseillerRH.email && formData.conseillerRH.email !== '' ? "L'email est requis" : ""}
+                    />
+                  </Grid>
+                </>
+              )}
+
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>
                   Informations du bénéficiaire
@@ -588,11 +838,11 @@ const ListeDossiers: React.FC = () => {
 
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth required>
-                  <InputLabel>Relation</InputLabel>
+                  <InputLabel>Relation avec l'employé</InputLabel>
                   <Select
                     value={formData.beneficiaire.relationAvecEmploye}
                     onChange={(e) => handleChange('beneficiaire.relationAvecEmploye', e.target.value)}
-                    label="Relation"
+                    label="Relation avec l'employé"
                     error={!formData.beneficiaire.relationAvecEmploye && formData.beneficiaire.relationAvecEmploye !== ''}
                   >
                     <MenuItem value="CONJOINT">Conjoint(e)</MenuItem>

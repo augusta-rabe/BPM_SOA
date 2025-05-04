@@ -17,9 +17,10 @@ import {
 } from '@mui/material';
 import { 
   Folder as FolderIcon, 
+  People as EmployesIcon, 
   EditNote as EditNoteIcon,
-  Business as BusinessIcon,
-  People as PeopleIcon
+  Support as CRHIcon,
+  Business as BusinessIcon
 } from '@mui/icons-material';
 import { GET_DOSSIERS } from '../graphql/queries';
 import { Dossier, StatutDossier } from '../types';
@@ -68,24 +69,30 @@ const Dashboard: React.FC = () => {
   const actions = [
     {
       title: 'Employés',
-      description: 'Gérez les employés de l\'entreprise.',
-      icon: <PeopleIcon fontSize="large" color="primary" />,
+      description: 'Gérez les employés de l\'organisation.',
+      icon: <EmployesIcon fontSize="large" color="primary" />,
       path: '/employes'
     },
     {
-      title: 'Gestion des Dossiers',
+      title: 'Conseillers RH',
+      description: 'Gérez les conseillers RH de l\'organisation.',
+      icon: <CRHIcon fontSize="large" color="primary" />,
+      path: '/conseillers-rh'
+    },
+    {
+      title: 'Dossiers',
       description: 'Consultez et gérez tous les dossiers de changement de bénéficiaires.',
       icon: <FolderIcon fontSize="large" color="primary" />,
       path: '/dossiers'
     },
     {
-      title: 'Mise à jour Bénéficiaire',
+      title: 'Mise à jour bénéficiaire',
       description: 'Procédez à la mise à jour d\'un bénéficiaire conformément au processus BPM.',
       icon: <EditNoteIcon fontSize="large" color="primary" />,
       path: '/mise-a-jour-beneficiaire'
     },
     {
-      title: 'Interface Compagnie d\'Assurance',
+      title: 'Interface Compagnie d\'assurance',
       description: 'Accédez à l\'interface réservée aux compagnies d\'assurance.',
       icon: <BusinessIcon fontSize="large" color="primary" />,
       path: '/compagnie-assurance'

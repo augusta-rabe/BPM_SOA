@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, ApolloError } from '@apollo/client';
 import {
@@ -29,11 +29,12 @@ import {
   DialogContentText,
   DialogTitle,
 } from '@mui/material';
-import { GET_DOSSIER, UPDATE_DOSSIER_STATUT, DELETE_DOSSIER } from '../graphql/queries';
+import { GET_DOSSIER, UPDATE_DOSSIER_STATUT, DELETE_DOSSIER, GET_CONSEILLERS_RH, UPDATE_DOSSIER_CONSEILLER } from '../graphql/queries';
 import { StatutDossier } from '../types';
 // import HistoriqueModifications from '../components/HistoriqueModifications';
 import { useTheme } from '@mui/material/styles';
-import { ArrowBack as ArrowBackIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Delete as DeleteIcon, Edit as EditIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material';
+import { SelectChangeEvent } from '@mui/material';
 
 interface Notification {
   id: string;
@@ -85,14 +86,29 @@ const DossierDetails: React.FC = () => {
   const navigate = useNavigate();
   const [newStatut, setNewStatut] = useState<StatutDossier | ''>('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conseillerDialogOpen, setConseillerDialogOpen] = useState(false);
+  const [selectedConseillerRHId, setSelectedConseillerRHId] = useState<string>('');
   const theme = useTheme();
 
-  const { loading, error, data } = useQuery(GET_DOSSIER, {
+  const { loading, error, data, refetch } = useQuery(GET_DOSSIER, {
     variables: { id },
+    skip: !id
   });
 
+  const { loading: loadingConseillers, data: conseillersData } = useQuery(GET_CONSEILLERS_RH);
+
   const [updateStatut, { loading: updating }] = useMutation(UPDATE_DOSSIER_STATUT);
-  const [deleteDossier] = useMutation(DELETE_DOSSIER);
+  const [deleteDossier, { loading: deleting }] = useMutation(DELETE_DOSSIER);
+
+  const [updateDossierConseiller, { loading: updatingConseiller }] = useMutation(UPDATE_DOSSIER_CONSEILLER, {
+    onCompleted: () => {
+      setConseillerDialogOpen(false);
+      refetch();
+    },
+    onError: (error) => {
+      console.error('Erreur lors de la mise à jour du conseiller RH:', error);
+    }
+  });
 
   const handleStatutChange = async (statut: StatutDossier) => {
     try {
@@ -120,6 +136,46 @@ const DossierDetails: React.FC = () => {
       console.error('Erreur lors de la suppression:', err);
     }
     setDeleteDialogOpen(false);
+  };
+
+  useEffect(() => {
+    if (data?.dossier?.conseillerRH) {
+      setSelectedConseillerRHId(data.dossier.conseillerRH.id);
+    } else {
+      setSelectedConseillerRHId('');
+    }
+  }, [data]);
+
+  const handleConseillerChange = (event: SelectChangeEvent) => {
+    setSelectedConseillerRHId(event.target.value);
+  };
+
+  const handleConseillerDialogOpen = () => {
+    setConseillerDialogOpen(true);
+  };
+
+  const handleConseillerDialogClose = () => {
+    if (data?.dossier?.conseillerRH) {
+      setSelectedConseillerRHId(data.dossier.conseillerRH.id);
+    } else {
+      setSelectedConseillerRHId('');
+    }
+    setConseillerDialogOpen(false);
+  };
+
+  const handleConseillerSubmit = async () => {
+    if (id) {
+      try {
+        await updateDossierConseiller({
+          variables: {
+            id,
+            conseillerRHId: selectedConseillerRHId || null
+          }
+        });
+      } catch (err) {
+        console.error('Erreur lors de la mise à jour du conseiller:', err);
+      }
+    }
   };
 
   if (loading) return (
@@ -363,9 +419,20 @@ const DossierDetails: React.FC = () => {
 
             <Card sx={styles.card}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Conseiller RH
-                </Typography>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                  <Typography variant="h6">
+                    Conseiller RH
+                  </Typography>
+                  <Button 
+                    variant="outlined" 
+                    size="small"
+                    startIcon={<PersonAddIcon />}
+                    onClick={handleConseillerDialogOpen}
+                  >
+                    {dossier.conseillerRH ? 'Changer' : 'Assigner'}
+                  </Button>
+                </Box>
+                
                 {dossier.conseillerRH ? (
                   <Grid container spacing={2}>
                     <Grid item xs={12} sm={6}>
@@ -503,6 +570,62 @@ const DossierDetails: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
           <Button onClick={confirmDelete} color="error" autoFocus>Supprimer</Button>
+        </DialogActions>
+      </Dialog>
+      
+      <Dialog
+        open={conseillerDialogOpen}
+        onClose={handleConseillerDialogClose}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {dossier.conseillerRH ? 'Changer le conseiller RH' : 'Assigner un conseiller RH'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {dossier.conseillerRH 
+              ? 'Sélectionnez un nouveau conseiller RH pour ce dossier.' 
+              : 'Sélectionnez un conseiller RH à assigner à ce dossier.'}
+          </DialogContentText>
+          
+          {loadingConseillers ? (
+            <Box display="flex" justifyContent="center" my={2}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : (
+            <FormControl fullWidth sx={{ mt: 1 }}>
+              <InputLabel id="conseiller-select-label">Conseiller RH</InputLabel>
+              <Select
+                labelId="conseiller-select-label"
+                value={selectedConseillerRHId}
+                onChange={handleConseillerChange}
+                label="Conseiller RH"
+              >
+                {!conseillersData?.conseillersRH?.length ? (
+                  <MenuItem value="">
+                    <em>Aucun conseiller disponible</em>
+                  </MenuItem>
+                ) : (
+                  conseillersData.conseillersRH.map((conseiller: ConseillerRH) => (
+                    <MenuItem key={conseiller.id} value={conseiller.id}>
+                      {conseiller.prenom} {conseiller.nom} ({conseiller.email})
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleConseillerDialogClose}>Annuler</Button>
+          <Button 
+            onClick={handleConseillerSubmit} 
+            color="primary" 
+            disabled={updatingConseiller}
+          >
+            {updatingConseiller ? 'Mise à jour...' : 'Confirmer'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
