@@ -7,7 +7,6 @@ import client from './apollo/client';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import ListeDossiers from './pages/ListeDossiers';
-import NouveauDossier from './pages/NouveauDossier';
 import DossierDetails from './pages/DossierDetails';
 import MiseAJourBeneficiaire from './pages/MiseAJourBeneficiaire';
 import InterfaceCompagnieAssurance from './pages/InterfaceCompagnieAssurance';
@@ -57,7 +56,6 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dossiers" element={<ListeDossiers />} />
-              <Route path="/nouveau-dossier" element={<NouveauDossier />} />
               <Route path="/dossier/:id" element={<DossierDetails />} />
               <Route path="/mise-a-jour-beneficiaire" element={<MiseAJourBeneficiaire />} />
               <Route path="/mise-a-jour-beneficiaire/:id" element={<MiseAJourBeneficiaire />} />
